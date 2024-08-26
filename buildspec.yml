@@ -1,0 +1,54 @@
+version: 0.2
+
+env:
+  variables:
+    STAGE_OR_ENVIRONMENT: "STAGE_OR_ENVIRONMENT"
+    CLIENT_OR_POD: "CLIENT_OR_POD"
+    AWS_DEFAULT_REGION: "AWS_DEFAULT_REGION"
+    AWS_ACCOUNT_ID: "AWS_ACCOUNT_ID"
+    API_NAME_ST: "alexandria-genai-rag-evaluator"
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - pip3 install pytest
+
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+    on-failure: ABORT
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - echo $STAGE_OR_ENVIRONMENT
+      - echo $CLIENT_OR_POD
+      - echo $AWS_DEFAULT_REGION
+      - echo $(docker version)
+      - REPOSITORY_URI_ST=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$API_NAME_ST
+      - IMAGE_TAG_ST=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - echo $REPOSITORY_URI_ST
+      - echo $IMAGE_TAG_ST
+      - docker build -t $REPOSITORY_URI_ST:$IMAGE_TAG_ST -f Dockerfile .
+      # - docker run -d -it -e AWS_DEFAULT_REGION -e AWS_ACCOUNT_ID -e OS_USER -e CLIENT_ID -e DOC_QAHASH_INDEX_REFACTOR_NAME -e OPENAI_API_KEY -e OS_PORT -e DOC_EMBEDDING_INDEX_NAME -e EMBEDDING_INDEX_NAME -e OS_PASSWORD -e CLIENT_SECRET -e OS_ENDPOINT -e INTROSPECTION_URL -e PASS_TOKE=1 -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN -e AWS_SESSION_TOKEN -e SONARLOGIN -p 8088:8088 --name alexandria-rfp-ddq $REPOSITORY_URI:$IMAGE_TAG
+      # - sleep 10s
+      # - docker ps -a
+      # - echo $CLIENT_ID
+      # - docker exec alexandria-rfp-ddq bash -c "cd /app && pip install pytest pytest-asyncio pytest-cov coverage && python -m pytest --cov && python -m coverage xml"
+      # - docker exec alexandria-rfp-ddq bash -c "cd /app && sh sonar_scanner.sh"
+    on-failure: ABORT
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - docker push $REPOSITORY_URI_ST:$IMAGE_TAG_ST
+      - echo Writing image definitions file...
+      - printf '[{"name":"%s","imageUri":"%s"}]' alexandria-genai-rag-evaluator $REPOSITORY_URI_ST:$IMAGE_TAG_ST > imagedefinitions.json
+      - cat imagedefinitions.json
+    on-failure: ABORT
+artifacts:
+  files: imagedefinitions.json

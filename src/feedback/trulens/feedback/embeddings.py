@@ -48,6 +48,19 @@ class Embeddings(WithClassInfo, SerialModel):
         """
         super().__init__()
         self._embed_model = embed_model
+        
+    def create_embeddings(self, text: str):
+        try:
+            response = self._embed_model.embeddings.create(
+                input=[text],
+                model="text-embedding-ada-002"
+            )
+            embeddings = response.data[0].embedding 
+            print(f"Created embedding for text: {text[:30]}...")  # Log the text and embedding creation
+            return embeddings
+        except Exception as e:
+            print(f"Error creating embedding for text: {text[:30]}... Error: {e}")
+            raise
 
     def cosine_distance(
         self, query: str, document: str

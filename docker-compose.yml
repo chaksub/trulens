@@ -1,0 +1,15 @@
+version: "0.1"
+
+services:
+  frontend:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    volumes:
+      - ".:/app"
+      - "/app/.venv"
+      - "~/.aws:/root/.aws"
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env

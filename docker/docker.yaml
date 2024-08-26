@@ -1,0 +1,26 @@
+version: "3.9"
+
+x-healthcheck: &healthcheck
+  start_period: 10s # wait 10 seconds before first check
+  interval: 5s # wait 5 seconds between checks
+  timeout: 3s # count 1 failure if check is not answered in 3 seconds
+  retries: 5 # mark as unhealthy after 5 failures
+
+services:
+  opensearch:
+    image: opensearchproject/opensearch:latest
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "plugins.security.disabled=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -vq '\"status\":\"red\"'"]
+      <<: *healthcheck
